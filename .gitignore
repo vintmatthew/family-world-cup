@@ -1,0 +1,7 @@
+# Local cache, snapshot and downloaded flags — rebuilt automatically each run.
+data/
+
+# Local-only PDF (generated when you run it on Windows; not used online).
+Family-World-Cup.pdf
+
+node_modules/

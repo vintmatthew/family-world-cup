@@ -1,0 +1,50 @@
+name: Update World Cup tracker
+
+# Rebuilds the page from the latest data and republishes it to GitHub Pages.
+# Runs automatically every hour, and can be triggered by hand from the Actions
+# tab (the "Run workflow" button). No laptop required — this runs on GitHub.
+
+on:
+  schedule:
+    - cron: "17 * * * *" # every hour at :17 (an off-peak minute = less delay)
+  workflow_dispatch: {} # lets you trigger it manually whenever you like
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two runs publish at once; don't cancel an in-progress deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build the page
+        run: node refresh.mjs
+        # Note: PDF generation is skipped here (no browser on the runner) — the
+        # script handles that gracefully. The live web page is what gets published.
+
+      - name: Stage the page for publishing
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

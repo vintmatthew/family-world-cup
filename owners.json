@@ -1,0 +1,46 @@
+{
+  "_instructions": [
+    "Map each family member to the two national teams they own.",
+    "Team names MUST match exactly one of the names in _valid_team_names below (copy/paste them).",
+    "Add a line per family member. Save the file, then run refresh (double-click refresh.bat).",
+    "You can give each person more or fewer than 2 teams if your game works differently."
+  ],
+  "owners": {
+    "Matthew": ["Australia", "Algeria"],
+    "Alice": ["Egypt", "Canada"],
+    "William": ["Belgium", "Senegal"],
+    "Barbara": ["Spain", "Brazil"],
+    "Nana Caz": ["Mexico", "Paraguay"],
+    "Charlotte": ["Morocco", "Switzerland"],
+    "Nanny": ["Germany", "Uruguay"],
+    "Dylan": ["Scotland", "Ivory Coast"],
+    "Ellie": ["Czech Republic", "England"],
+    "Hazel": ["Argentina", "Norway"],
+    "Kat": ["Tunisia", "Ecuador"],
+    "Grandad": ["Panama", "Portugal"],
+    "Marky Boy": ["Colombia", "Netherlands"],
+    "Megan": ["France", "DR Congo"],
+    "Mitch": ["South Korea", "Sweden"],
+    "Robert": ["Iran", "Turkey"],
+    "Thomas": ["USA", "Austria"],
+    "Sofia": ["Japan", "Croatia"]
+  },
+  "_unassigned_teams": [
+    "South Africa", "Bosnia & Herzegovina", "Qatar", "Haiti", "Curaçao",
+    "New Zealand", "Cape Verde", "Saudi Arabia", "Iraq", "Jordan", "Uzbekistan", "Ghana"
+  ],
+  "_valid_team_names": [
+    "Mexico", "South Africa", "South Korea", "Czech Republic",
+    "Canada", "Bosnia & Herzegovina", "Qatar", "Switzerland",
+    "Brazil", "Morocco", "Haiti", "Scotland",
+    "USA", "Paraguay", "Australia", "Turkey",
+    "Germany", "Curaçao", "Ivory Coast", "Ecuador",
+    "Netherlands", "Japan", "Sweden", "Tunisia",
+    "Belgium", "Egypt", "Iran", "New Zealand",
+    "Spain", "Cape Verde", "Saudi Arabia", "Uruguay",
+    "France", "Senegal", "Iraq", "Norway",
+    "Argentina", "Algeria", "Austria", "Jordan",
+    "Portugal", "DR Congo", "Uzbekistan", "Colombia",
+    "England", "Croatia", "Ghana", "Panama"
+  ]
+}
