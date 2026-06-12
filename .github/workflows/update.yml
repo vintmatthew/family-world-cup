@@ -16,10 +16,13 @@ permissions:
   pages: write
   id-token: write
 
-# Never let two runs publish at once; don't cancel an in-progress deploy.
+# Only ever publish the latest build. If a new run starts while an older one is
+# still going, cancel the older one — this prevents two builds clashing at the
+# publish step (which otherwise sends a spurious "run failed" email even though
+# the next run recovers). For a simple "always show newest" page this is ideal.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
