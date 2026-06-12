@@ -382,6 +382,26 @@ playedMatches.sort((a, b) => (b._k.epoch || 0) - (a._k.epoch || 0));
 const statusCache = {};
 const statusOf = (team) => (statusCache[team] ??= teamStatus(team, ctx));
 
+// Total football points a team has earned across ALL its completed matches
+// (win = 3, draw = 1), group and knockout. Drives the leaderboard tie-breaker so
+// it moves with every result during the group stage.
+const pointsCache = {};
+function teamPointsOf(team) {
+  if (pointsCache[team] != null) return pointsCache[team];
+  let pts = 0;
+  for (const m of matches) {
+    if (!(m.score && m.score.ft)) continue;
+    const t1 = m.num != null ? bracket.resolve(m.team1).name : m.team1;
+    const t2 = m.num != null ? bracket.resolve(m.team2).name : m.team2;
+    if (t1 !== team && t2 !== team) continue;
+    const [a, b] = m.score.ft;
+    const mine = t1 === team ? a : b, theirs = t1 === team ? b : a;
+    if (mine > theirs) pts += 3;
+    else if (mine === theirs) pts += 1;
+  }
+  return (pointsCache[team] = pts);
+}
+
 // ----------------------------------------------------------------------------
 // HTML rendering
 // ----------------------------------------------------------------------------
@@ -441,18 +461,20 @@ function matchRow(m) {
 // --- Family standings ---
 const familyRows = Object.entries(memberTeams)
   .map(([member, teams]) => {
-    const ts = (teams || []).filter((t) => teamSet.has(t)).map((t) => ({ t, st: statusOf(t) }));
+    const ts = (teams || []).filter((t) => teamSet.has(t)).map((t) => ({ t, st: statusOf(t), pts: teamPointsOf(t) }));
     const alive = ts.filter((x) => x.st.alive).length;
     const reach = ts.reduce((s, x) => s + x.st.stageIdx, 0);
-    return { member, ts, alive, reach };
+    const points = ts.reduce((s, x) => s + x.pts, 0);
+    return { member, ts, alive, reach, points };
   })
   .filter((r) => r.ts.length)
-  .sort((a, b) => b.alive - a.alive || b.reach - a.reach || a.member.localeCompare(b.member));
+  // progress first (the sweepstake prize), then total points (lively now), then name
+  .sort((a, b) => b.alive - a.alive || b.reach - a.reach || b.points - a.points || a.member.localeCompare(b.member));
 
 const familyTable = familyRows.length
-  ? `<section><h2>👪 Family standings <small>(by teams still in)</small></h2>
+  ? `<section><h2>👪 Family standings <small>(teams still in, then points)</small></h2>
     <table class="fam">
-      <thead><tr><th>#</th><th>Member</th><th>Teams</th><th>Still in</th></tr></thead>
+      <thead><tr><th>#</th><th>Member</th><th>Teams</th><th>Pts</th><th>Still in</th></tr></thead>
       <tbody>${familyRows
         .map(
           (r, i) => `<tr>
@@ -461,9 +483,10 @@ const familyTable = familyRows.length
         <td>${r.ts
             .map(
               (x) =>
-                `<div class="ft-line">${flag(x.t)} ${esc(x.t)} <span class="st ${x.st.alive ? "s-in" : "s-out"}">${esc(x.st.label)}</span></div>`
+                `<div class="ft-line">${flag(x.t)} ${esc(x.t)} <span class="tpts">${x.pts}&nbsp;pt${x.pts === 1 ? "" : "s"}</span> <span class="st ${x.st.alive ? "s-in" : "s-out"}">${esc(x.st.label)}</span></div>`
             )
             .join("")}</td>
+        <td class="rk pts">${r.points}</td>
         <td class="rk">${r.alive}/${r.ts.length}</td>
       </tr>`
         )
@@ -574,6 +597,7 @@ const html = `<!doctype html>
   td.rk{text-align:center;font-weight:700;color:var(--muted)}
   .ft-line{margin:2px 0}
   .st{font-size:11px;padding:0 6px;border-radius:6px;margin-left:4px}
+  .tpts{font-size:11px;color:var(--muted);font-weight:700}
   .s-in{background:#e6f7ee;color:#127a43}.s-out{background:#fdecea;color:#b03127}
   /* match rows */
   .mrow{display:grid;grid-template-columns:1fr 92px 1fr;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
