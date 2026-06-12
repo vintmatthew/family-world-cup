@@ -21,8 +21,13 @@ const DATA_DIR = path.join(HERE, "data");
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // ---- config ----------------------------------------------------------------
-const DISPLAY_TZ =
-  process.env.WC_TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+// Show everything in ONE consistent timezone so the whole family reads the same
+// clock. Default = UK. We must NOT auto-detect the machine's timezone here: the
+// GitHub server that rebuilds the site runs in UTC, so we pin it. Override with
+// the WC_TZ env var if you ever need a different zone.
+const DISPLAY_TZ = process.env.WC_TZ || "Europe/London";
+const TZ_LABEL =
+  process.env.WC_TZ_LABEL || (DISPLAY_TZ === "Europe/London" ? "UK time" : DISPLAY_TZ);
 const BASE =
   "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026";
 const SOURCES = {
@@ -608,7 +613,7 @@ const html = `<!doctype html>
     <h1>🌍 Family World Cup 2026</h1>
     <div class="sub">${dayNum < 1 ? "Kicks off 11 June 2026" : `Day ${dayNum} of the tournament`} ·
       ${playedMatches.length}/${totalMatches} matches played ·
-      Updated ${esc(updated)} (${esc(DISPLAY_TZ)})</div>
+      Updated ${esc(updated)} (${esc(TZ_LABEL)})</div>
     <div class="bar"><i style="width:${donePct}%"></i></div>
   </header>
   ${familyTable}
@@ -618,7 +623,7 @@ const html = `<!doctype html>
   ${koHtml}
   <footer>
     Data: public-domain <a href="https://github.com/openfootball/worldcup.json">openfootball/worldcup.json</a> ·
-    Standings &amp; bracket computed locally · Times in ${esc(DISPLAY_TZ)}.<br>
+    Standings &amp; bracket computed locally · Times in ${esc(TZ_LABEL)}.<br>
     Tie-breakers use points → goal difference → goals scored (simplified). Best-third-place spots resolve once group stage ends.
   </footer>
 </div></body></html>`;

@@ -8,6 +8,8 @@ on:
   schedule:
     - cron: "17 * * * *" # every hour at :17 (an off-peak minute = less delay)
   workflow_dispatch: {} # lets you trigger it manually whenever you like
+  push:
+    branches: [main] # rebuild straight away whenever you push a change
 
 permissions:
   contents: read
