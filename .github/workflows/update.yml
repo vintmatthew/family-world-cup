@@ -7,9 +7,9 @@ name: Update World Cup tracker
 on:
   schedule:
     # GitHub's free cron is best-effort and silently drops many scheduled runs,
-    # especially on the hour. Scheduling every ~10 min on offset minutes means
-    # enough of them actually fire to keep the page reasonably fresh.
-    - cron: "3,13,23,33,43,53 * * * *"
+    # especially on the hour. 5 min is GitHub's hard floor; scheduling every 5 min
+    # on offset minutes (away from :00) means enough actually fire to stay fresh.
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   workflow_dispatch: {} # lets you trigger it manually whenever you like
   push:
     branches: [main] # rebuild straight away whenever you push a change

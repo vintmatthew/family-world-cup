@@ -1,5 +1,8 @@
-# Local cache, snapshot and downloaded flags — rebuilt automatically each run.
-data/
+# Local cache + snapshot — refetched automatically each run.
+data/*
+# ...but DO keep the flag images in the repo, so the frequent runs don't
+# re-download all 48 from the free flag CDN every time (they never change).
+!data/flags/
 
 # Local-only PDF (generated when you run it on Windows; not used online).
 Family-World-Cup.pdf
