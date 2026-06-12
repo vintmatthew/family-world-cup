@@ -570,6 +570,7 @@ const html = `<!doctype html>
   header.top{background:linear-gradient(120deg,#5b2a86,#1f6feb);color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:18px;box-shadow:0 6px 22px rgba(31,111,235,.18)}
   header.top h1{margin:0;font-size:24px;letter-spacing:.2px}
   header.top .sub{opacity:.92;margin-top:6px;font-size:13px}
+  header.top .banner-note{margin-top:10px;font-size:12px;line-height:1.4;background:rgba(255,255,255,.16);border-radius:8px;padding:6px 10px}
   .bar{height:7px;background:rgba(255,255,255,.25);border-radius:6px;margin-top:12px;overflow:hidden}
   .bar > i{display:block;height:100%;background:#fff;border-radius:6px}
   section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 16px;box-shadow:0 1px 3px rgba(16,24,40,.04)}
@@ -639,6 +640,7 @@ const html = `<!doctype html>
       ${playedMatches.length}/${totalMatches} matches played ·
       Updated ${esc(updated)} (${esc(TZ_LABEL)})</div>
     <div class="bar"><i style="width:${donePct}%"></i></div>
+    <div class="banner-note">⏳ Heads up: scores can take a few hours to appear — they come from a free community data source, so results aren't instant.</div>
   </header>
   ${familyTable}
   ${upcomingHtml}
