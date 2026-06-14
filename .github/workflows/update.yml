@@ -5,12 +5,13 @@ name: Update World Cup tracker
 # tab (the "Run workflow" button). No laptop required — this runs on GitHub.
 
 on:
+  # PRIMARY updater is an external trigger (cron-job.org) that hits
+  # workflow_dispatch every 5 minutes — far more reliable than GitHub's own cron,
+  # which silently drops most scheduled runs. The schedule below is just a sparse
+  # BACKUP for if that external service is ever down.
   schedule:
-    # GitHub's free cron is best-effort and silently drops many scheduled runs,
-    # especially on the hour. 5 min is GitHub's hard floor; scheduling every 5 min
-    # on offset minutes (away from :00) means enough actually fire to stay fresh.
-    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
-  workflow_dispatch: {} # lets you trigger it manually whenever you like
+    - cron: "13,43 * * * *" # backup only: twice an hour
+  workflow_dispatch: {} # used by the external trigger AND the manual "Run workflow" button
   push:
     branches: [main] # rebuild straight away whenever you push a change
 
