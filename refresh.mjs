@@ -415,6 +415,22 @@ const dayNum = Math.floor((now.getTime() - firstDay) / 86400000) + 1;
 const totalMatches = matches.length;
 const donePct = Math.round((playedMatches.length / totalMatches) * 100);
 
+// "Result pending": a match has almost certainly finished but the (free, slow)
+// feed still has no score. 90 min play + 15 min half-time + ~15 min stoppage
+// ≈ 120 min. This deliberately ignores knockout extra time. Bump LIKELY_DONE_MIN
+// up if you want to be more cautious, down to flag sooner.
+const nowMs = now.getTime();
+const LIKELY_DONE_MIN = 120;
+const isPending = (m) =>
+  !(m.score && m.score.ft) && m._k.epoch != null && nowMs >= m._k.epoch + LIKELY_DONE_MIN * 60000;
+const hasPendingMatch = (team) =>
+  matches.some((m) => {
+    if (!isPending(m)) return false;
+    const t1 = m.num != null ? bracket.resolve(m.team1).name : m.team1;
+    const t2 = m.num != null ? bracket.resolve(m.team2).name : m.team2;
+    return t1 === team || t2 === team;
+  });
+
 const flag = (t) => {
   const iso = teamMap[t]?.iso;
   const uri = iso && flagData[iso];
@@ -446,6 +462,7 @@ function scoreOrTime(m) {
     const p = m.score.p ? ` <small>(pens ${m.score.p[0]}-${m.score.p[1]})</small>` : "";
     return `<span class="sc">${a}–${b}${p}</span>`;
   }
+  if (isPending(m)) return `<span class="pending">⏳ pending</span>`;
   return `<span class="tm">${esc(m._k.local || m.time || "")}</span>`;
 }
 
@@ -461,7 +478,7 @@ function matchRow(m) {
 // --- Family standings ---
 const familyRows = Object.entries(memberTeams)
   .map(([member, teams]) => {
-    const ts = (teams || []).filter((t) => teamSet.has(t)).map((t) => ({ t, st: statusOf(t), pts: teamPointsOf(t) }));
+    const ts = (teams || []).filter((t) => teamSet.has(t)).map((t) => ({ t, st: statusOf(t), pts: teamPointsOf(t), pending: hasPendingMatch(t) }));
     const alive = ts.filter((x) => x.st.alive).length;
     const reach = ts.reduce((s, x) => s + x.st.stageIdx, 0);
     const points = ts.reduce((s, x) => s + x.pts, 0);
@@ -483,7 +500,7 @@ const familyTable = familyRows.length
         <td>${r.ts
             .map(
               (x) =>
-                `<div class="ft-line">${flag(x.t)} ${esc(x.t)} <span class="tpts">${x.pts}&nbsp;pt${x.pts === 1 ? "" : "s"}</span> <span class="st ${x.st.alive ? "s-in" : "s-out"}">${esc(x.st.label)}</span></div>`
+                `<div class="ft-line">${flag(x.t)} ${esc(x.t)} <span class="tpts">${x.pts}&nbsp;pt${x.pts === 1 ? "" : "s"}</span> <span class="st ${x.st.alive ? "s-in" : "s-out"}">${esc(x.st.label)}</span>${x.pending ? ` <span class="pending">⏳ result pending</span>` : ""}</div>`
             )
             .join("")}</td>
         <td class="rk pts">${r.points}</td>
@@ -599,6 +616,7 @@ const html = `<!doctype html>
   .ft-line{margin:2px 0}
   .st{font-size:11px;padding:0 6px;border-radius:6px;margin-left:4px}
   .tpts{font-size:11px;color:var(--muted);font-weight:700}
+  .pending{display:inline-block;font-size:11px;font-weight:700;background:#fff4e5;color:#9a5b00;border:1px solid #ffd9a0;border-radius:6px;padding:0 6px}
   .s-in{background:#e6f7ee;color:#127a43}.s-out{background:#fdecea;color:#b03127}
   /* match rows */
   .mrow{display:grid;grid-template-columns:1fr 92px 1fr;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
