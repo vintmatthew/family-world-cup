@@ -402,6 +402,25 @@ function teamPointsOf(team) {
   return (pointsCache[team] = pts);
 }
 
+// Win/draw/loss record across all a team's completed matches (group + knockout).
+const recordCache = {};
+function teamRecordOf(team) {
+  if (recordCache[team]) return recordCache[team];
+  let W = 0, D = 0, L = 0;
+  for (const m of matches) {
+    if (!(m.score && m.score.ft)) continue;
+    const t1 = m.num != null ? bracket.resolve(m.team1).name : m.team1;
+    const t2 = m.num != null ? bracket.resolve(m.team2).name : m.team2;
+    if (t1 !== team && t2 !== team) continue;
+    const [a, b] = m.score.ft;
+    const mine = t1 === team ? a : b, theirs = t1 === team ? b : a;
+    if (mine > theirs) W++;
+    else if (mine === theirs) D++;
+    else L++;
+  }
+  return (recordCache[team] = { W, D, L });
+}
+
 // ----------------------------------------------------------------------------
 // HTML rendering
 // ----------------------------------------------------------------------------
@@ -479,7 +498,7 @@ function matchRow(m) {
 // --- Family standings ---
 const familyRows = Object.entries(memberTeams)
   .map(([member, teams]) => {
-    const ts = (teams || []).filter((t) => teamSet.has(t)).map((t) => ({ t, st: statusOf(t), pts: teamPointsOf(t), pending: hasPendingMatch(t) }));
+    const ts = (teams || []).filter((t) => teamSet.has(t)).map((t) => ({ t, st: statusOf(t), pts: teamPointsOf(t), rec: teamRecordOf(t), pending: hasPendingMatch(t) }));
     const alive = ts.filter((x) => x.st.alive).length;
     const reach = ts.reduce((s, x) => s + x.st.stageIdx, 0);
     const points = ts.reduce((s, x) => s + x.pts, 0);
@@ -501,7 +520,7 @@ const familyTable = familyRows.length
         <td>${r.ts
             .map(
               (x) =>
-                `<div class="ft-line">${flag(x.t)} ${esc(x.t)} <span class="tpts">${x.pts}&nbsp;pt${x.pts === 1 ? "" : "s"}</span> <span class="st ${x.st.alive ? "s-in" : "s-out"}">${esc(x.st.label)}</span>${x.pending ? ` <span class="pending">⏳ result pending</span>` : ""}</div>`
+                `<div class="ft-line">${x.st.alive ? `<span class="tick">✅</span>` : `<span class="tick">❌</span>`} ${flag(x.t)} ${esc(x.t)} <span class="wdl">${x.rec.W}W ${x.rec.D}D ${x.rec.L}L</span> <span class="tpts">${x.pts}&nbsp;pt${x.pts === 1 ? "" : "s"}</span> <span class="st ${x.st.alive ? "s-in" : "s-out"}">${esc(x.st.label)}</span>${x.pending ? ` <span class="pending">⏳ result pending</span>` : ""}</div>`
             )
             .join("")}</td>
         <td class="rk pts">${r.points}</td>
@@ -618,6 +637,8 @@ const html = `<!doctype html>
   .st{font-size:11px;padding:0 6px;border-radius:6px;margin-left:4px}
   .tpts{font-size:11px;color:var(--muted);font-weight:700}
   .pending{display:inline-block;font-size:11px;font-weight:700;background:#fff4e5;color:#9a5b00;border:1px solid #ffd9a0;border-radius:6px;padding:0 6px}
+  .tick{font-size:11px}
+  .wdl{font-size:11px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
   .s-in{background:#e6f7ee;color:#127a43}.s-out{background:#fdecea;color:#b03127}
   /* match rows */
   .mrow{display:grid;grid-template-columns:1fr 92px 1fr;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
