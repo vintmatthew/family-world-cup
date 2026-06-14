@@ -472,7 +472,7 @@ const familyRows = Object.entries(memberTeams)
   .sort((a, b) => b.alive - a.alive || b.reach - a.reach || b.points - a.points || a.member.localeCompare(b.member));
 
 const familyTable = familyRows.length
-  ? `<section><h2>👪 Family standings <small>(teams still in, then points)</small></h2>
+  ? `<section id="standings"><h2>👪 Family standings <small>(teams still in, then points)</small></h2>
     <table class="fam">
       <thead><tr><th>#</th><th>Member</th><th>Teams</th><th>Pts</th><th>Still in</th></tr></thead>
       <tbody>${familyRows
@@ -502,7 +502,7 @@ const upcoming = matches
   .sort((a, b) => (a._k.epoch || 0) - (b._k.epoch || 0));
 const upByDate = {};
 for (const m of upcoming) (upByDate[m._k.localDate] ||= []).push(m);
-const upcomingHtml = `<section><h2>📅 Next 7 days</h2>${
+const upcomingHtml = `<section id="fixtures"><h2>📅 Next 7 days</h2>${
   Object.keys(upByDate).length
     ? Object.entries(upByDate)
         .map(([d, ms]) => {
@@ -516,14 +516,14 @@ const upcomingHtml = `<section><h2>📅 Next 7 days</h2>${
 }</section>`;
 
 // --- Recent results ---
-const recentHtml = `<section><h2>✅ Recent results</h2>${
+const recentHtml = `<section id="results"><h2>✅ Recent results</h2>${
   playedMatches.length
     ? playedMatches.slice(0, 10).map(matchRow).join("")
     : `<p class="muted">No matches have been played yet — the tournament starts 11 June 2026.</p>`
 }</section>`;
 
 // --- Group standings ---
-const groupHtml = `<section><h2>📊 Group standings</h2><div class="grid">${groups
+const groupHtml = `<section id="groups"><h2>📊 Group standings</h2><div class="grid">${groups
   .map((g) => {
     const L = g.name.replace(/^Group\s+/i, "");
     const rows = standings.tables[L] || [];
@@ -548,7 +548,7 @@ const groupHtml = `<section><h2>📊 Group standings</h2><div class="grid">${gro
 
 // --- Knockout bracket ---
 const koRounds = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Match for third place", "Final"];
-const koHtml = `<section><h2>🏆 Knockout bracket</h2><div class="grid">${koRounds
+const koHtml = `<section id="knockouts"><h2>🏆 Knockout bracket</h2><div class="grid">${koRounds
   .map((rd) => {
     const ms = matches.filter((m) => m.round === rd).sort((a, b) => (a.num || 0) - (b.num || 0));
     if (!ms.length) return "";
@@ -566,7 +566,7 @@ const html = `<!doctype html>
   :root{ --bg:#f4f6fb; --card:#fff; --ink:#1a2230; --muted:#6b7688; --line:#e3e8f0; --accent:#5b2a86; }
   *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:920px;margin:0 auto;padding:18px}
+  .wrap{max-width:920px;margin:0 auto;padding:18px 18px 88px}
   header.top{background:linear-gradient(120deg,#5b2a86,#1f6feb);color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:18px;box-shadow:0 6px 22px rgba(31,111,235,.18)}
   header.top h1{margin:0;font-size:24px;letter-spacing:.2px}
   header.top .sub{opacity:.92;margin-top:6px;font-size:13px}
@@ -623,6 +623,20 @@ const html = `<!doctype html>
   .pts{font-weight:700}
   footer{color:var(--muted);font-size:12px;text-align:center;padding:8px 0 22px}
   footer a{color:var(--accent)}
+  /* floating "jump to a section" menu — works on desktop and mobile */
+  html{scroll-behavior:smooth}
+  section{scroll-margin-top:14px}
+  .fab{position:fixed;right:16px;bottom:16px;z-index:50}
+  .fab summary{list-style:none;cursor:pointer;width:52px;height:52px;border-radius:50%;
+    background:linear-gradient(120deg,#5b2a86,#1f6feb);color:#fff;font-size:22px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(16,24,40,.28)}
+  .fab summary::-webkit-details-marker{display:none}
+  .fab summary::marker{content:""}
+  .fab-menu{position:absolute;right:0;bottom:62px;background:#fff;border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 10px 28px rgba(16,24,40,.22);padding:6px;min-width:172px;
+    display:flex;flex-direction:column;gap:1px}
+  .fab-menu a{padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;white-space:nowrap}
+  .fab-menu a:hover{background:var(--bg)}
   @media(max-width:680px){.spotgrid,.grid{grid-template-columns:1fr}.wrap{padding:10px}}
   @page{margin:11mm}
   @media print{
@@ -631,10 +645,11 @@ const html = `<!doctype html>
     header.top{box-shadow:none}
     section{box-shadow:none;break-inside:avoid}
     .gtable,.koround,.daygrp,.mrow,tr{break-inside:avoid}
+    .fab{display:none} /* keep the PDF clean */
   }
 </style></head>
 <body><div class="wrap">
-  <header class="top">
+  <header class="top" id="top">
     <h1>🌍 Family World Cup 2026</h1>
     <div class="sub">${dayNum < 1 ? "Kicks off 11 June 2026" : `Day ${dayNum} of the tournament`} ·
       ${playedMatches.length}/${totalMatches} matches played ·
@@ -652,7 +667,24 @@ const html = `<!doctype html>
     Standings &amp; bracket computed locally · Times in ${esc(TZ_LABEL)}.<br>
     Tie-breakers use points → goal difference → goals scored (simplified). Best-third-place spots resolve once group stage ends.
   </footer>
-</div></body></html>`;
+</div>
+<details class="fab">
+  <summary aria-label="Jump to a section">☰</summary>
+  <nav class="fab-menu">
+    <a href="#top">⬆️ Top</a>
+    <a href="#standings">👪 Leaderboard</a>
+    <a href="#fixtures">📅 Upcoming</a>
+    <a href="#results">✅ Results</a>
+    <a href="#groups">📊 Groups</a>
+    <a href="#knockouts">🏆 Knockouts</a>
+  </nav>
+</details>
+<script>
+  document.querySelectorAll(".fab-menu a").forEach(function (a) {
+    a.addEventListener("click", function () { a.closest("details").open = false; });
+  });
+</script>
+</body></html>`;
 
 const htmlPath = path.join(HERE, "index.html");
 fs.writeFileSync(htmlPath, html);
