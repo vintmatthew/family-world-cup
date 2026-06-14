@@ -430,6 +430,7 @@ const hasPendingMatch = (team) =>
     const t2 = m.num != null ? bracket.resolve(m.team2).name : m.team2;
     return t1 === team || t2 === team;
   });
+const pendingCount = matches.filter(isPending).length;
 
 const flag = (t) => {
   const iso = teamMap[t]?.iso;
@@ -670,7 +671,7 @@ const html = `<!doctype html>
   <header class="top" id="top">
     <h1>🌍 Family World Cup 2026</h1>
     <div class="sub">${dayNum < 1 ? "Kicks off 11 June 2026" : `Day ${dayNum} of the tournament`} ·
-      ${playedMatches.length}/${totalMatches} matches played ·
+      ${playedMatches.length}/${totalMatches} matches played${pendingCount ? ` · <span class="pending">⏳ ${pendingCount} pending</span>` : ""} ·
       Updated ${esc(updated)} (${esc(TZ_LABEL)})</div>
     <div class="bar"><i style="width:${donePct}%"></i></div>
     <div class="banner-note">⏳ Heads up: scores can take a few hours to appear — they come from a free community data source, so results aren't instant.</div>
