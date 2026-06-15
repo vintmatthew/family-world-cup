@@ -727,8 +727,8 @@ const html = `<!doctype html>
   .fab-menu a{padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;white-space:nowrap}
   .fab-menu a:hover{background:var(--bg)}
   /* Polymarket title odds + tap-a-flag popover */
-  .oddsgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
-  .odds-row{display:flex;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid var(--line);font-size:13px}
+  .oddsgrid{column-count:2;column-gap:24px}
+  .odds-row{display:flex;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid var(--line);font-size:13px;break-inside:avoid;-webkit-column-break-inside:avoid}
   .orank{color:var(--muted);font-weight:700;min-width:20px;text-align:right;font-variant-numeric:tabular-nums}
   .oname{flex:1}
   .oprob{font-weight:700;font-variant-numeric:tabular-nums}
@@ -736,7 +736,7 @@ const html = `<!doctype html>
   .odds-pop{position:absolute;z-index:60;background:#1a2230;color:#fff;border-radius:8px;padding:7px 10px;font-size:12.5px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:230px}
   .odds-pop b{font-size:13.5px}
   .odds-src{opacity:.72;font-size:11px;margin-top:2px}
-  @media(max-width:680px){.oddsgrid{grid-template-columns:1fr}}
+  @media(max-width:680px){.oddsgrid{column-count:1}}
   @media(max-width:680px){.spotgrid,.grid{grid-template-columns:1fr}.wrap{padding:10px}}
   @page{margin:11mm}
   @media print{
