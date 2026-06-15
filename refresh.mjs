@@ -752,10 +752,10 @@ const html = `<!doctype html>
   <header class="top" id="top">
     <h1>🌍 Family World Cup 2026</h1>
     <div class="sub">${dayNum < 1 ? "Kicks off 11 June 2026" : `Day ${dayNum} of the tournament`} ·
-      ${playedMatches.length}/${totalMatches} matches played${pendingCount ? ` · <span class="pending">⏳ ${pendingCount} pending</span>` : ""} ·
+      ${playedMatches.length}/${totalMatches} matches played ·
       Updated ${esc(updated)} (${esc(TZ_LABEL)})</div>
     <div class="bar"><i style="width:${donePct}%"></i></div>
-    <div class="banner-note">⏳ Heads up: scores can take a few hours to appear — they come from a free community data source, so results aren't instant.</div>
+    <div class="banner-note">Note: scores can take a while to update (free data source). Status: ${pendingCount ? `⏳ ${pendingCount} match${pendingCount === 1 ? "" : "es"} pending` : "✅ all up to date"}.</div>
   </header>
   ${familyTable}
   ${upcomingHtml}
