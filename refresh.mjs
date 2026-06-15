@@ -627,17 +627,36 @@ const koHtml = `<section id="knockouts"><h2>🏆 Knockout bracket</h2><div class
   })
   .join("")}</div></section>`;
 
-// --- Title odds (Polymarket) ---
+// --- Title odds (Polymarket): toggle between by-team and by-family-member ---
 const oddsRows = teamsArr
   .map((t) => ({ name: t.name, p: winProb[t.name] }))
   .filter((x) => x.p != null)
   .sort((a, b) => b.p - a.p);
+// Per member: only one team can be champion, so their two teams are mutually
+// exclusive — the combined chance one of them wins is just the sum.
+const memberOdds = Object.entries(memberTeams)
+  .map(([member, teams]) => {
+    const ts = (teams || []).filter((t) => teamSet.has(t)).map((t) => ({ t, p: winProb[t] }));
+    const combined = ts.reduce((s, x) => s + (x.p || 0), 0);
+    return { member, ts, combined };
+  })
+  .filter((r) => r.ts.length)
+  .sort((a, b) => b.combined - a.combined || a.member.localeCompare(b.member));
 const oddsHtml = oddsRows.length
   ? `<section id="odds"><h2>🎲 Title odds <small>(implied chance to win · Polymarket)</small></h2>
-    <div class="oddsgrid">${oddsRows
+    <div class="odds-controls"><label>View: <select id="odds-mode"><option value="team">By team</option><option value="member">By family member</option></select></label></div>
+    <div class="oddsgrid odds-by-team">${oddsRows
       .map(
         (r, i) =>
           `<div class="odds-row"><span class="orank">${i + 1}</span> ${flag(r.name)} <span class="oname">${esc(r.name)}</span> <span class="oprob">${(r.p * 100).toFixed(1)}%</span>${ownerOf[r.name] ? " " + chip(ownerOf[r.name]) : ""}</div>`
+      )
+      .join("")}</div>
+    <div class="odds-by-member" style="display:none"><div class="omnote">Ranked by the combined chance one of a member's teams wins the World Cup.</div>${memberOdds
+      .map(
+        (r, i) =>
+          `<div class="odds-row mem"><span class="orank">${i + 1}</span> ${chip(r.member)} <span class="oprob">${(r.combined * 100).toFixed(1)}%</span><div class="omteams">${r.ts
+            .map((x) => `${flag(x.t)} ${esc(x.t)} <span class="osub">${x.p != null ? (x.p * 100).toFixed(1) + "%" : "—"}</span>`)
+            .join(" · ")}</div></div>`
       )
       .join("")}</div></section>`
   : "";
@@ -732,6 +751,12 @@ const html = `<!doctype html>
   .orank{color:var(--muted);font-weight:700;min-width:20px;text-align:right;font-variant-numeric:tabular-nums}
   .oname{flex:1}
   .oprob{font-weight:700;font-variant-numeric:tabular-nums}
+  .odds-controls{margin:-2px 0 12px}
+  .odds-controls select{font:inherit;padding:3px 7px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer}
+  .omnote{font-size:11.5px;color:var(--muted);margin-bottom:7px}
+  .odds-row.mem{flex-wrap:wrap}
+  .omteams{flex:1 1 100%;margin-left:27px;margin-top:2px;color:var(--muted);font-size:12px}
+  .omteams .osub{font-weight:700;color:var(--ink)}
   .fl.odds,.flx.odds{cursor:pointer}
   .odds-pop{position:absolute;z-index:60;background:#1a2230;color:#fff;border-radius:8px;padding:7px 10px;font-size:12.5px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:230px}
   .odds-pop b{font-size:13.5px}
@@ -811,6 +836,13 @@ const html = `<!doctype html>
       pop.style.top = (window.scrollY + r.bottom + 6) + "px";
     });
   })();
+  // Title-odds view switch: by team <-> by family member.
+  var oddsMode = document.getElementById("odds-mode");
+  if (oddsMode) oddsMode.addEventListener("change", function () {
+    var byTeam = oddsMode.value === "team";
+    document.querySelector(".odds-by-team").style.display = byTeam ? "" : "none";
+    document.querySelector(".odds-by-member").style.display = byTeam ? "none" : "";
+  });
 </script>
 </body></html>`;
 
