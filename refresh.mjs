@@ -297,6 +297,14 @@ const [matchesDoc, teamsDoc, groupsDoc] = await Promise.all([
   fetchJson("groups", SOURCES.groups),
 ]);
 
+// Polymarket title-winner odds — optional, must never break the build.
+let pmDoc = null;
+try {
+  pmDoc = await fetchJson("polymarket", "https://gamma-api.polymarket.com/events?slug=world-cup-winner");
+} catch (e) {
+  log(`  ! polymarket odds unavailable (${e.message})`);
+}
+
 const teamsArr = Array.isArray(teamsDoc) ? teamsDoc : Object.values(teamsDoc);
 const teamMap = {};
 for (const t of teamsArr) {
@@ -341,6 +349,27 @@ for (const t of teamsArr) {
 }
 await Promise.all([...new Set(teamsArr.map(isoOf).filter(Boolean))].map(ensureFlag));
 log(`  ✓ flags: ${Object.keys(flagData).length}/${teamsArr.length} ready`);
+
+// Polymarket implied win probabilities, keyed by our team name (0..1).
+const PM_ALIAS = { "Czech Republic": "Czechia", "Turkey": "Turkiye", "DR Congo": "Congo DR" };
+const pmNorm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]/g, "");
+const winProb = {};
+if (pmDoc) {
+  const ev = Array.isArray(pmDoc) ? pmDoc[0] : pmDoc;
+  const byNorm = {};
+  for (const m of ev?.markets || []) {
+    if (!m.groupItemTitle) continue;
+    let p = null;
+    try { p = +JSON.parse(m.outcomePrices || "[]")[0]; } catch {}
+    if (p != null && !Number.isNaN(p)) byNorm[pmNorm(m.groupItemTitle)] = p;
+  }
+  for (const t of teamsArr) {
+    let p = byNorm[pmNorm(t.name)];
+    if (p == null && PM_ALIAS[t.name]) p = byNorm[pmNorm(PM_ALIAS[t.name])];
+    if (p != null) winProb[t.name] = p;
+  }
+  log(`  ✓ odds: ${Object.keys(winProb).length}/${teamsArr.length} teams priced`);
+}
 
 // merge with last snapshot, then compute everything
 let snapshot = null;
@@ -454,9 +483,14 @@ const pendingCount = matches.filter(isPending).length;
 const flag = (t) => {
   const iso = teamMap[t]?.iso;
   const uri = iso && flagData[iso];
-  if (uri) return `<img class="fl" src="${uri}" width="22" height="15" alt="${esc(teamMap[t]?.code || "")}">`;
+  const p = winProb[t];
+  const od = p != null
+    ? ` data-team="${esc(t)}" data-prob="${(p * 100).toFixed(1)}" title="${esc(t)} — ${(p * 100).toFixed(1)}% to win (Polymarket)"`
+    : "";
+  const oc = p != null ? " odds" : "";
+  if (uri) return `<img class="fl${oc}" src="${uri}" width="22" height="15" alt="${esc(teamMap[t]?.code || "")}"${od}>`;
   const code = teamMap[t]?.code;
-  return code ? `<span class="flx">${esc(code)}</span>` : "";
+  return code ? `<span class="flx${oc}"${od}>${esc(code)}</span>` : "";
 };
 const chip = (member) =>
   member
@@ -593,6 +627,21 @@ const koHtml = `<section id="knockouts"><h2>🏆 Knockout bracket</h2><div class
   })
   .join("")}</div></section>`;
 
+// --- Title odds (Polymarket) ---
+const oddsRows = teamsArr
+  .map((t) => ({ name: t.name, p: winProb[t.name] }))
+  .filter((x) => x.p != null)
+  .sort((a, b) => b.p - a.p);
+const oddsHtml = oddsRows.length
+  ? `<section id="odds"><h2>🎲 Title odds <small>(implied chance to win · Polymarket)</small></h2>
+    <div class="oddsgrid">${oddsRows
+      .map(
+        (r, i) =>
+          `<div class="odds-row"><span class="orank">${i + 1}</span> ${flag(r.name)} <span class="oname">${esc(r.name)}</span> <span class="oprob">${(r.p * 100).toFixed(1)}%</span>${ownerOf[r.name] ? " " + chip(ownerOf[r.name]) : ""}</div>`
+      )
+      .join("")}</div></section>`
+  : "";
+
 const html = `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -677,6 +726,17 @@ const html = `<!doctype html>
     display:flex;flex-direction:column;gap:1px}
   .fab-menu a{padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;white-space:nowrap}
   .fab-menu a:hover{background:var(--bg)}
+  /* Polymarket title odds + tap-a-flag popover */
+  .oddsgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
+  .odds-row{display:flex;align-items:center;gap:7px;padding:4px 2px;border-bottom:1px solid var(--line);font-size:13px}
+  .orank{color:var(--muted);font-weight:700;min-width:20px;text-align:right;font-variant-numeric:tabular-nums}
+  .oname{flex:1}
+  .oprob{font-weight:700;font-variant-numeric:tabular-nums}
+  .fl.odds,.flx.odds{cursor:pointer}
+  .odds-pop{position:absolute;z-index:60;background:#1a2230;color:#fff;border-radius:8px;padding:7px 10px;font-size:12.5px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:230px}
+  .odds-pop b{font-size:13.5px}
+  .odds-src{opacity:.72;font-size:11px;margin-top:2px}
+  @media(max-width:680px){.oddsgrid{grid-template-columns:1fr}}
   @media(max-width:680px){.spotgrid,.grid{grid-template-columns:1fr}.wrap{padding:10px}}
   @page{margin:11mm}
   @media print{
@@ -702,9 +762,10 @@ const html = `<!doctype html>
   ${recentHtml}
   ${groupHtml}
   ${koHtml}
+  ${oddsHtml}
   <footer>
     Data: public-domain <a href="https://github.com/openfootball/worldcup.json">openfootball/worldcup.json</a> ·
-    Standings &amp; bracket computed locally · Times in ${esc(TZ_LABEL)}.<br>
+    Standings &amp; bracket computed locally · Title odds from <a href="https://polymarket.com/event/world-cup-winner">Polymarket</a> · Times in ${esc(TZ_LABEL)}.<br>
     Tie-breakers use points → goal difference → goals scored (simplified). Best-third-place spots resolve once group stage ends.
   </footer>
 </div>
@@ -717,12 +778,39 @@ const html = `<!doctype html>
     <a href="#results">✅ Results</a>
     <a href="#groups">📊 Groups</a>
     <a href="#knockouts">🏆 Knockouts</a>
+    <a href="#odds">🎲 Odds</a>
   </nav>
 </details>
 <script>
   document.querySelectorAll(".fab-menu a").forEach(function (a) {
     a.addEventListener("click", function () { a.closest("details").open = false; });
   });
+  // Tap (mobile) or click any flag to see that team's Polymarket win probability.
+  (function () {
+    var pop = null;
+    function close() { if (pop) { pop.remove(); pop = null; } }
+    document.addEventListener("click", function (e) {
+      var el = e.target.closest ? e.target.closest("[data-prob]") : null;
+      if (!el) { close(); return; }
+      e.preventDefault();
+      close();
+      pop = document.createElement("div");
+      pop.className = "odds-pop";
+      var name = document.createElement("b");
+      name.textContent = el.getAttribute("data-team");
+      var prob = document.createElement("div");
+      prob.textContent = el.getAttribute("data-prob") + "% to win the World Cup";
+      var src = document.createElement("div");
+      src.className = "odds-src";
+      src.textContent = "implied odds · Polymarket";
+      pop.appendChild(name); pop.appendChild(prob); pop.appendChild(src);
+      document.body.appendChild(pop);
+      var r = el.getBoundingClientRect();
+      var maxLeft = window.scrollX + document.documentElement.clientWidth - pop.offsetWidth - 8;
+      pop.style.left = Math.max(8, Math.min(window.scrollX + r.left, maxLeft)) + "px";
+      pop.style.top = (window.scrollY + r.bottom + 6) + "px";
+    });
+  })();
 </script>
 </body></html>`;
 
