@@ -754,8 +754,9 @@ const html = `<!doctype html>
   .odds-controls{margin:-2px 0 12px}
   .odds-controls select{font:inherit;padding:3px 7px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer}
   .omnote{font-size:11.5px;color:var(--muted);margin-bottom:7px}
-  .odds-row.mem{flex-wrap:wrap}
-  .omteams{flex:1 1 100%;margin-left:27px;margin-top:2px;color:var(--muted);font-size:12px}
+  .odds-row.mem{flex-wrap:wrap;row-gap:3px}
+  .odds-row.mem .oprob{margin-right:4px}
+  .omteams{flex:1 1 230px;color:var(--muted);font-size:12px}
   .omteams .osub{font-weight:700;color:var(--ink)}
   .fl.odds,.flx.odds{cursor:pointer}
   .odds-pop{position:absolute;z-index:60;background:#1a2230;color:#fff;border-radius:8px;padding:7px 10px;font-size:12.5px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:230px}
