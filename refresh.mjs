@@ -469,8 +469,11 @@ const donePct = Math.round((playedMatches.length / totalMatches) * 100);
 // up if you want to be more cautious, down to flag sooner.
 const nowMs = now.getTime();
 const LIKELY_DONE_MIN = 120;
-const isPending = (m) =>
-  !(m.score && m.score.ft) && m._k.epoch != null && nowMs >= m._k.epoch + LIKELY_DONE_MIN * 60000;
+const minsSince = (m) => (m._k.epoch != null ? (nowMs - m._k.epoch) / 60000 : -Infinity);
+const noScore = (m) => !(m.score && m.score.ft);
+// kicked off & still no score: "live" until ~120 min, then "pending" (feed lagging).
+const isLive = (m) => noScore(m) && minsSince(m) >= 0 && minsSince(m) < LIKELY_DONE_MIN;
+const isPending = (m) => noScore(m) && minsSince(m) >= LIKELY_DONE_MIN;
 const hasPendingMatch = (team) =>
   matches.some((m) => {
     if (!isPending(m)) return false;
@@ -479,6 +482,7 @@ const hasPendingMatch = (team) =>
     return t1 === team || t2 === team;
   });
 const pendingCount = matches.filter(isPending).length;
+const liveCount = matches.filter(isLive).length;
 
 const flag = (t) => {
   const iso = teamMap[t]?.iso;
@@ -517,6 +521,7 @@ function scoreOrTime(m) {
     return `<span class="sc">${a}–${b}${p}</span>`;
   }
   if (isPending(m)) return `<span class="pending">⏳ pending</span>`;
+  if (isLive(m)) return `<span class="live">🔴 in progress</span>`;
   return `<span class="tm">${esc(m._k.local || m.time || "")}</span>`;
 }
 
@@ -705,6 +710,7 @@ const html = `<!doctype html>
   .st{font-size:11px;padding:0 6px;border-radius:6px;margin-left:4px}
   .tpts{font-size:11px;color:var(--muted);font-weight:700}
   .pending{display:inline-block;font-size:11px;font-weight:700;background:#fff4e5;color:#9a5b00;border:1px solid #ffd9a0;border-radius:6px;padding:0 6px}
+  .live{display:inline-block;font-size:11px;font-weight:700;background:#fdecef;color:#c0143c;border:1px solid #f5b8c6;border-radius:6px;padding:0 6px}
   .tick{font-size:11px}
   .wdl{font-size:11px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
   .s-in{background:#e6f7ee;color:#127a43}.s-out{background:#fdecea;color:#b03127}
@@ -781,7 +787,13 @@ const html = `<!doctype html>
       ${playedMatches.length}/${totalMatches} matches played ·
       Updated ${esc(updated)} (${esc(TZ_LABEL)})</div>
     <div class="bar"><i style="width:${donePct}%"></i></div>
-    <div class="banner-note">Note: scores can take a while to update (free data source). Status: ${pendingCount ? `⏳ ${pendingCount} match${pendingCount === 1 ? "" : "es"} pending` : "✅ all up to date"}.</div>
+    <div class="banner-note">Note: scores can take a while to update (free data source). Status: ${
+      pendingCount
+        ? `⏳ ${pendingCount} result${pendingCount === 1 ? "" : "s"} pending`
+        : liveCount
+          ? `⚽ ${liveCount} match${liveCount === 1 ? "" : "es"} in progress`
+          : "✅ all up to date"
+    }.</div>
   </header>
   ${familyTable}
   ${upcomingHtml}
