@@ -1,17 +1,16 @@
 name: Update World Cup tracker
 
 # Rebuilds the page from the latest data and republishes it to GitHub Pages.
-# Runs automatically every hour, and can be triggered by hand from the Actions
-# tab (the "Run workflow" button). No laptop required — this runs on GitHub.
+# Triggered every ~5 min by an external cron (cron-job.org) hitting
+# workflow_dispatch, with a sparse GitHub schedule as backup. A throttle step
+# below makes sure we only actually DEPLOY about once every 9 minutes, because
+# GitHub Pages rate-limits deployments (~10/hour) — deploy more often than that
+# and it silently stops publishing, leaving the live site hours stale.
 
 on:
-  # PRIMARY updater is an external trigger (cron-job.org) that hits
-  # workflow_dispatch every 5 minutes — far more reliable than GitHub's own cron,
-  # which silently drops most scheduled runs. The schedule below is just a sparse
-  # BACKUP for if that external service is ever down.
+  workflow_dispatch: {} # external trigger + the manual "Run workflow" button
   schedule:
     - cron: "13,43 * * * *" # backup only: twice an hour
-  workflow_dispatch: {} # used by the external trigger AND the manual "Run workflow" button
   push:
     branches: [main] # rebuild straight away whenever you push a change
 
@@ -20,13 +19,11 @@ permissions:
   pages: write
   id-token: write
 
-# Only ever publish the latest build. If a new run starts while an older one is
-# still going, cancel the older one — this prevents two builds clashing at the
-# publish step (which otherwise sends a spurious "run failed" email even though
-# the next run recovers). For a simple "always show newest" page this is ideal.
+# Serialise deployments and let each one finish (GitHub's recommended setting for
+# Pages). We rely on the throttle step below — not cancellation — to limit rate.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -35,25 +32,50 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      # Throttle: skip everything if the site was published very recently, so we
+      # stay comfortably under GitHub Pages' deploy rate limit. Uses the live
+      # site's own Last-Modified as the clock, so it's stateless and correct even
+      # though each run starts fresh.
+      - name: Throttle deploys
+        id: gate
+        run: |
+          LM=$(curl -sI "https://vintmatthew.github.io/family-world-cup/" | tr -d '\r' | grep -i '^last-modified:' | cut -d' ' -f2-)
+          if [ -z "$LM" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; echo "No Last-Modified header — proceeding."; exit 0; fi
+          AGE=$(( $(date -u +%s) - $(date -u -d "$LM" +%s) ))
+          echo "Live site was last published ${AGE}s ago."
+          if [ "$AGE" -ge 540 ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            echo "Old enough — will rebuild and deploy."
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Deployed <9 min ago — skipping to respect GitHub Pages rate limits."
+          fi
 
-      - uses: actions/setup-node@v4
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
 
       - name: Build the page
+        if: steps.gate.outputs.go == 'true'
         run: node refresh.mjs
-        # Note: PDF generation is skipped here (no browser on the runner) — the
-        # script handles that gracefully. The live web page is what gets published.
+        # PDF generation is skipped on the runner (no browser) — handled gracefully.
 
       - name: Stage the page for publishing
+        if: steps.gate.outputs.go == 'true'
         run: |
           mkdir -p _site
           cp index.html _site/index.html
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/configure-pages@v5
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: _site
       - id: deploy
+        if: steps.gate.outputs.go == 'true'
         uses: actions/deploy-pages@v4
