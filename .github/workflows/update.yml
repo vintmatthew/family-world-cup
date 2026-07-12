@@ -39,6 +39,8 @@ jobs:
       - name: Throttle deploys
         id: gate
         run: |
+          # A push means the code/config changed — always deploy that straight away.
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; echo "Push event — deploying immediately."; exit 0; fi
           LM=$(curl -sI "https://vintmatthew.github.io/family-world-cup/" | tr -d '\r' | grep -i '^last-modified:' | cut -d' ' -f2-)
           if [ -z "$LM" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; echo "No Last-Modified header — proceeding."; exit 0; fi
           AGE=$(( $(date -u +%s) - $(date -u -d "$LM" +%s) ))
