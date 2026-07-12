@@ -1,0 +1,14 @@
+{
+  "_instructions": [
+    "Fix wrong or missing scores from the free data feed. Only use when the feed is clearly wrong.",
+    "Each entry finds a game by 'date' + the two team names (either order) and forces the score.",
+    "ft = final score [team1, team2]. Add 'aet': true if it was decided in extra time.",
+    "For a penalty shootout, also add 'p': [team1pens, team2pens] so the winner is worked out.",
+    "Remove an entry once the feed itself is correct again. Leave overrides: [] when nothing needs fixing.",
+    "Team names must match the tracker exactly (see _valid_team_names in owners.json)."
+  ],
+  "overrides": [
+    { "date": "2026-07-11", "team1": "Norway", "team2": "England", "ft": [1, 2], "aet": true },
+    { "date": "2026-07-11", "team1": "Argentina", "team2": "Switzerland", "ft": [3, 1], "aet": true }
+  ]
+}

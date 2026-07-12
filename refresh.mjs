@@ -380,6 +380,45 @@ if (fs.existsSync(snapPath)) {
 const matches = mergeScores(matchesDoc.matches || [], snapshot);
 for (const m of matches) m._k = parseKickoff(m);
 
+// Guard against feed errors: a match that hasn't kicked off yet cannot have a
+// real result. If the source lists a score on a future-dated match (e.g. a
+// placeholder score on an unplayed knockout fixture), ignore it everywhere.
+const buildNowMs = Date.now();
+let droppedFuture = 0;
+for (const m of matches) {
+  if (m.score && m.score.ft && m._k.epoch != null && m._k.epoch > buildNowMs) {
+    delete m.score;
+    delete m.goals1;
+    delete m.goals2;
+    droppedFuture++;
+  }
+}
+if (droppedFuture) log(`  ! ignored ${droppedFuture} score(s) on not-yet-played matches (feed error)`);
+
+// Manual score corrections for when the free feed is wrong or incomplete
+// (see score-overrides.json). These win over the feed and the future guard.
+let overridesDoc = { overrides: [] };
+try {
+  overridesDoc = JSON.parse(fs.readFileSync(path.join(HERE, "score-overrides.json"), "utf8"));
+} catch {}
+let overrode = 0;
+for (const o of overridesDoc.overrides || []) {
+  if (!o || !Array.isArray(o.ft)) continue;
+  const hit = matches.find(
+    (m) =>
+      m.date === o.date &&
+      ((m.team1 === o.team1 && m.team2 === o.team2) || (m.team1 === o.team2 && m.team2 === o.team1))
+  );
+  if (!hit) continue;
+  const flip = hit.team1 !== o.team1; // config may list the teams in either order
+  hit.score = { ft: flip ? [o.ft[1], o.ft[0]] : [o.ft[0], o.ft[1]] };
+  if (Array.isArray(o.p)) hit.score.p = flip ? [o.p[1], o.p[0]] : [o.p[0], o.p[1]];
+  if (o.aet) hit._aet = true;
+  hit._override = true;
+  overrode++;
+}
+if (overrode) log(`  ✎ applied ${overrode} manual score override(s)`);
+
 const standings = computeStandings(matches, groups, teamMap);
 const bracket = buildBracket(matches, standings, teamSet);
 const ctx = { teamMap, standings, matches, bracket };
@@ -517,8 +556,13 @@ function side(ref, alignRight) {
 function scoreOrTime(m) {
   if (m.score && m.score.ft) {
     const [a, b] = m.score.ft;
-    const p = m.score.p ? ` <small>(pens ${m.score.p[0]}-${m.score.p[1]})</small>` : "";
-    return `<span class="sc">${a}–${b}${p}</span>`;
+    const extra = m.score.p
+      ? ` <small>(pens ${m.score.p[0]}-${m.score.p[1]})</small>`
+      : m._aet
+        ? ` <small>(a.e.t.)</small>`
+        : "";
+    const t = m._override ? ` title="Corrected — the data feed had this wrong"` : "";
+    return `<span class="sc"${t}>${a}–${b}${extra}</span>`;
   }
   if (isPending(m)) return `<span class="pending">⏳ pending</span>`;
   if (isLive(m)) return `<span class="live">🔴 in progress</span>`;
