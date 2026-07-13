@@ -239,7 +239,7 @@ const STAGE_NAME = ["Group stage", "Round of 32", "Round of 16", "Quarter-final"
 
 // ---- per-team status (alive / eliminated / how far) ------------------------
 function teamStatus(team, ctx) {
-  const { teamMap, standings, matches, bracket } = ctx;
+  const { teamMap, standings, matches, bracket, knockoutStarted } = ctx;
   const L = teamMap[team]?.group;
   const rows = standings.tables[L] || [];
   const row = rows.find((r) => r.team === team);
@@ -265,7 +265,10 @@ function teamStatus(team, ctx) {
 
   if (ko.length === 0) {
     if (rank <= 2) return { alive: true, stageIdx: 1, label: `Group ${L} ${ordinal(rank)} — awaiting Round of 32 draw` };
-    if (rank === 3) return { alive: true, stageIdx: 0, label: `Group ${L} 3rd — awaiting best-third places` };
+    if (rank === 3) {
+      if (knockoutStarted) return { alive: false, stageIdx: 0, label: `Eliminated — group stage (3rd in Group ${L})` };
+      return { alive: true, stageIdx: 0, label: `Group ${L} 3rd — awaiting best-third places` };
+    }
     return { alive: false, stageIdx: 0, label: `Eliminated — group stage (${ordinal(rank)} in Group ${L})` };
   }
 
@@ -395,6 +398,16 @@ for (const m of matches) {
 }
 if (droppedFuture) log(`  ! ignored ${droppedFuture} score(s) on not-yet-played matches (feed error)`);
 
+// Knockout games decided in extra time: openfootball records the post-ET result
+// in score.et (cumulative, includes the 90-min goals). Treat it as the decisive
+// full-time score so winners, points and records come out right.
+for (const m of matches) {
+  if (m.score && Array.isArray(m.score.et)) {
+    m.score.ft = m.score.et;
+    m._aet = true;
+  }
+}
+
 // Manual score corrections for when the free feed is wrong or incomplete
 // (see score-overrides.json). These win over the feed and the future guard.
 let overridesDoc = { overrides: [] };
@@ -421,7 +434,10 @@ if (overrode) log(`  ✎ applied ${overrode} manual score override(s)`);
 
 const standings = computeStandings(matches, groups, teamMap);
 const bracket = buildBracket(matches, standings, teamSet);
-const ctx = { teamMap, standings, matches, bracket };
+// Once any knockout match has been played, the Round of 32 field (including the
+// best third-placed qualifiers) is locked — so a 3rd-placed team not in it is out.
+const knockoutStarted = matches.some((m) => m.num != null && m.score && m.score.ft);
+const ctx = { teamMap, standings, matches, bracket, knockoutStarted };
 
 // owners: team -> member, plus per-member team list
 let ownersDoc;
