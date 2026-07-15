@@ -237,6 +237,24 @@ const ROUND_INDEX = {
 };
 const STAGE_NAME = ["Group stage", "Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final", "Champion"];
 
+// A semi-final loser is OUT of the tournament — the third-place play-off is a
+// consolation game, not progress. Work out how to describe where they ended up.
+function thirdPlaceLabel(team, ctx) {
+  const { matches, bracket } = ctx;
+  const tp = matches.find(
+    (m) =>
+      m.round === "Match for third place" &&
+      (bracket.resolve(m.team1).name === team || bracket.resolve(m.team2).name === team)
+  );
+  if (!tp) return "Eliminated — semi-final";
+  if (tp.score && tp.score.ft) {
+    if (bracket.winner(tp.num) === team) return "🥉 Finished 3rd";
+    if (bracket.loser(tp.num) === team) return "Finished 4th";
+    return "3rd-place play-off — result pending";
+  }
+  return "Lost semi-final — plays for 3rd place";
+}
+
 // ---- per-team status (alive / eliminated / how far) ------------------------
 function teamStatus(team, ctx) {
   const { teamMap, standings, matches, bracket, knockoutStarted } = ctx;
@@ -258,7 +276,9 @@ function teamStatus(team, ctx) {
 
   // knockout matches this team actually reached (resolved participants)
   const ko = matches
-    .filter((m) => m.num != null)
+    // the third-place play-off is not part of the run to the trophy — exclude it,
+    // otherwise losing a semi looks like "through to" the next game.
+    .filter((m) => m.num != null && m.round !== "Match for third place")
     .map((m) => ({ m, p1: bracket.resolve(m.team1).name, p2: bracket.resolve(m.team2).name }))
     .filter((x) => x.p1 === team || x.p2 === team)
     .sort((a, b) => (ROUND_INDEX[a.m.round] || 0) - (ROUND_INDEX[b.m.round] || 0));
@@ -283,6 +303,7 @@ function teamStatus(team, ctx) {
     if (won && m.round === "Final") return { alive: true, stageIdx: 6, label: "🏆 World Champions!" };
     if (lost) {
       if (m.round === "Final") return { alive: false, stageIdx: 5, label: "Runners-up (lost the Final)" };
+      if (m.round === "Semi-final") return { alive: false, stageIdx: 4, label: thirdPlaceLabel(team, ctx) };
       return { alive: false, stageIdx: ri, label: `Eliminated — ${m.round}` };
     }
     if (won) return { alive: true, stageIdx: ri + 1, label: `Won ${m.round} — through to next round` };
