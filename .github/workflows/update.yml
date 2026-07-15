@@ -8,7 +8,12 @@ name: Update World Cup tracker
 # and it silently stops publishing, leaving the live site hours stale.
 
 on:
-  workflow_dispatch: {} # external trigger + the manual "Run workflow" button
+  workflow_dispatch: # external trigger + the manual "Run workflow" button
+    inputs:
+      force:
+        description: "Force a deploy now (ignore the throttle)"
+        type: boolean
+        default: false
   schedule:
     - cron: "13,43 * * * *" # backup only: twice an hour
   push:
@@ -19,11 +24,13 @@ permissions:
   pages: write
   id-token: write
 
-# Serialise deployments and let each one finish (GitHub's recommended setting for
-# Pages). We rely on the throttle step below — not cancellation — to limit rate.
+# One deploy at a time, newest wins. With triggers every ~5 min, queuing runs
+# (cancel-in-progress: false) made them supersede each other forever and nothing
+# ever published — a deadlock. The throttle step below is what limits our deploy
+# rate, so cancelling an older run here is safe: the next one just redoes it.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
@@ -41,6 +48,8 @@ jobs:
         run: |
           # A push means the code/config changed — always deploy that straight away.
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; echo "Push event — deploying immediately."; exit 0; fi
+          # "Run workflow" with force ticked — deploy now, ignore the throttle.
+          if [ "${{ inputs.force }}" = "true" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; echo "Forced run — deploying immediately."; exit 0; fi
           LM=$(curl -sI "https://vintmatthew.github.io/family-world-cup/" | tr -d '\r' | grep -i '^last-modified:' | cut -d' ' -f2-)
           if [ -z "$LM" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; echo "No Last-Modified header — proceeding."; exit 0; fi
           AGE=$(( $(date -u +%s) - $(date -u -d "$LM" +%s) ))
